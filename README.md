@@ -6,6 +6,7 @@
 Также вы будете писать здесь совместный проект.
 
 Предлагаю сперва вам подписаться ниже (просто напишите свой никнейм):
--mishanchik
--reviewe by @Losion445
--Sheva
+
+- mishanchik
+- reviewe by @Losion445
+- Sheva
