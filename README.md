@@ -24,8 +24,8 @@
 ## Бекенд
 1. CRUD для постов (Create, Read, Update, Delete)
 Примерные поля, которые должны быть у каждого поста:
-  1. id (int)
-  2. name
-  3. contents
-  4. likes (int >= 0)
+  - id (int)
+  - name
+  - contents
+  - count_likes (int >= 0)
 2. Аутентификация по паролю (гуглить http base auth)
