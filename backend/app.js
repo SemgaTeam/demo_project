@@ -23,7 +23,7 @@ app.use(express.json());
 app.use(express.static("public"));
 
 app.use(cors());
-
+//TODO: unique не работает, в базе данных все равно сохраняются одинаковые значения
 const createUserTable = async () => {
   const query = `
   CREATE TABLE IF NOT EXISTS users (
@@ -67,6 +67,16 @@ const deletePost = async (id) => {
 
   const res = await client.query(query, values);
   return res;
+};
+//TODO: почему-то сохраняются одинаковые никнеймы.
+const findByUsername = async (user) => {
+  const query = "SELECT * FROM users WHERE username = $1;";
+  const values = [user];
+  const result = await client.query(query, values);
+  console.log(result.rows.length);
+  if (result.rows.length > 0) {
+    return false;
+  }
 };
 const run = async () => {
   await createTable();
@@ -152,12 +162,10 @@ const hashedPassword = async (password) => {
 app.post("/registration", async (req, res) => {
   try {
     const { user, password } = req.body;
-
-    const query = "SELECT * FROM users WHERE username = $1;";
-    const values = [user];
-    const result = await client.query(query, values);
-    if (result.rows.length > 0) {
-      res.status(400).send("Такой пользователь уже существует");
+    const validUser = findByUsername(user);
+    console.log(validUser);
+    if (validUser === false) {
+      res.status(400).send("Пользователь с таким именем уже существует!");
     }
     const hashPassword = await hashedPassword(password);
     createUser(user, hashPassword);
