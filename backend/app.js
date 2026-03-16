@@ -68,7 +68,7 @@ const deletePost = async (id) => {
   const res = await client.query(query, values);
   return res;
 };
-//TODO: почему-то сохраняются одинаковые никнеймы.
+//TODO: не возвращает false!!!
 const findByUsername = async (user) => {
   const query = "SELECT * FROM users WHERE username = $1;";
   const values = [user];
