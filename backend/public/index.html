@@ -1,119 +1,427 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CRUD Posts</title>
+    <title>Простые посты</title>
     <style>
       body {
         font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
         padding: 20px;
       }
-      .post {
+      .nav {
+        background: #f0f0f0;
+        padding: 10px;
         margin-bottom: 20px;
-        padding: 15px;
-        border: 1px solid #ddd;
         border-radius: 5px;
       }
-      .post h2 {
-        margin-top: 0;
+      .nav a,
+      .nav button {
+        margin-right: 10px;
+        padding: 5px 10px;
+        text-decoration: none;
+        color: #333;
+      }
+      .nav button {
+        background: #ff4444;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .post {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        background: white;
+      }
+      .form-group {
+        margin-bottom: 10px;
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 8px 15px;
+        margin-right: 5px;
+        cursor: pointer;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 3px;
+      }
+      button:hover {
+        opacity: 0.8;
+      }
+      .hidden {
+        display: none;
+      }
+      .message {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+      }
+      .modal-content {
+        background: white;
+        max-width: 500px;
+        margin: 50px auto;
+        padding: 20px;
+        border-radius: 5px;
+      }
+      .delete-btn {
+        background: #dc3545;
+      }
+      .edit-btn {
+        background: #28a745;
       }
     </style>
   </head>
   <body>
-    <h1>Posts</h1>
-    <div id="posts-container"></div>
+    <div class="nav" id="nav">
+      <a href="/">🏠 Главная</a>
+      <span id="authLinks"></span>
+    </div>
 
-    <h2>Create New Post</h2>
-    <form id="post-form">
-      <label for="name">Name:</label><br />
-      <input type="text" id="name" required /><br /><br />
-      <label for="content">Content:</label><br />
-      <textarea id="content" required></textarea><br /><br />
-      <button type="submit">Create Post</button>
-    </form>
+    <h1>📝 Простые посты</h1>
+
+    <!-- Уведомления -->
+    <div id="message" class="message hidden"></div>
+
+    <!-- Форма создания поста -->
+    <div id="createPostSection" class="hidden">
+      <h3>➕ Создать новый пост</h3>
+      <form id="createForm">
+        <div class="form-group">
+          <input type="text" id="postName" placeholder="Ваше имя" required />
+        </div>
+        <div class="form-group">
+          <textarea
+            id="postContent"
+            placeholder="Текст поста"
+            rows="3"
+            required
+          ></textarea>
+        </div>
+        <button type="submit">📝 Опубликовать</button>
+      </form>
+    </div>
+
+    <!-- Список постов -->
+    <div id="posts"></div>
+
+    <!-- Модалка редактирования -->
+    <div id="editModal" class="modal">
+      <div class="modal-content">
+        <h3>✏️ Редактировать пост</h3>
+        <form id="editForm">
+          <input type="hidden" id="editId" />
+          <div class="form-group">
+            <input type="text" id="editName" placeholder="Имя" required />
+          </div>
+          <div class="form-group">
+            <textarea
+              id="editContent"
+              rows="3"
+              placeholder="Текст"
+              required
+            ></textarea>
+          </div>
+          <button type="submit">💾 Сохранить</button>
+          <button type="button" onclick="closeModal()">❌ Отмена</button>
+        </form>
+      </div>
+    </div>
 
     <script>
-      // Получение данных о постах
-      fetch("/posts")
-        .then((response) => response.json())
-        .then((posts) => {
-          const container = document.getElementById("posts-container");
-          posts.forEach((post) => {
-            const postDiv = document.createElement("div");
-            postDiv.classList.add("post");
-            postDiv.innerHTML = `
-            <h2>${post.name}</h2>
-            <p>${post.contents}</p>
-            <small>Created at: ${post.created_at}</small>
-            <button onclick="deletePost(${post.id})">Delete</button>
-            <button onclick="editPost(${post.id})">Edit</button>
-          `;
-            container.appendChild(postDiv);
-          });
-        })
-        .catch((error) => {
-          console.error("Error fetching posts:", error);
-        });
+      // ========== КОНФИГУРАЦИЯ ==========
+      const API_URL = "http://localhost:5500";
+      let currentUser = null;
+      let token = localStorage.getItem("token");
 
-      // Создание нового поста
-      const form = document.getElementById("post-form");
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
+      // ========== ИНИЦИАЛИЗАЦИЯ ==========
+      document.addEventListener("DOMContentLoaded", () => {
+        // Проверяем токен
+        if (token) {
+          try {
+            const base64Url = token.split(".")[1];
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            currentUser = JSON.parse(atob(base64));
+          } catch (e) {
+            localStorage.removeItem("token");
+            token = null;
+            currentUser = null;
+          }
+        }
 
-        const name = document.getElementById("name").value;
-        const content = document.getElementById("content").value;
-
-        const newPost = { name, contents: content, count_likes: 0 };
-
-        fetch("/posts", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(newPost),
-        })
-          .then((response) => response.json())
-          .then((post) => {
-            const container = document.getElementById("posts-container");
-            const postDiv = document.createElement("div");
-            postDiv.classList.add("post");
-            postDiv.innerHTML = `
-          <h2>${post.name}</h2>
-          <p>${post.contents}</p>
-          <small>Created at: ${post.created_at}</small>
-          <button onclick="deletePost(${post.id})">Delete</button>
-          <button onclick="editPost(${post.id})">Edit</button>
-        `;
-            container.appendChild(postDiv);
-
-            // Очистить форму
-            form.reset();
-          })
-          .catch((error) => {
-            console.error("Error creating post:", error);
-          });
+        updateNav();
+        loadPosts();
       });
 
-      // Удаление поста
-      function deletePost(id) {
-        fetch(`/posts/${id}`, {
-          method: "DELETE",
-        })
-          .then((response) => response.json())
-          .then((post) => {
-            alert(`Post deleted: ${post.name}`);
-            location.reload();
-          })
-          .catch((error) => {
-            console.error("Error deleting post:", error);
-          });
+      // ========== НАВИГАЦИЯ ==========
+      function updateNav() {
+        const authLinks = document.getElementById("authLinks");
+        const createSection = document.getElementById("createPostSection");
+
+        if (currentUser) {
+          authLinks.innerHTML = `
+                    <span>👋 Привет, ${currentUser.name || "пользователь"}!</span>
+                    <button onclick="logout()">🚪 Выйти</button>
+                `;
+          if (createSection) createSection.classList.remove("hidden");
+        } else {
+          authLinks.innerHTML = `
+                    <a href="/login.html">🔑 Вход</a>
+                    <a href="/register.html">📝 Регистрация</a>
+                `;
+          if (createSection) createSection.classList.add("hidden");
+        }
       }
 
-      // Редактирование поста (функция будет расширена)
-      function editPost(id) {
-        alert("Edit functionality will be added later!");
+      // ========== ВЫХОД ==========
+      window.logout = function () {
+        localStorage.removeItem("token");
+        token = null;
+        currentUser = null;
+        updateNav();
+        loadPosts();
+        showMessage("Вы вышли из системы", "success");
+      };
+
+      // ========== ЗАГРУЗКА ПОСТОВ ==========
+      async function loadPosts() {
+        const container = document.getElementById("posts");
+
+        try {
+          const response = await fetch(`${API_URL}/posts`);
+
+          if (!response.ok) {
+            throw new Error("Ошибка загрузки");
+          }
+
+          const posts = await response.json();
+
+          if (!posts || posts.length === 0) {
+            container.innerHTML = "<p>📭 Пока нет постов. Создайте первый!</p>";
+            return;
+          }
+
+          let html = "";
+          posts.forEach((post) => {
+            html += `
+                        <div class="post">
+                            <h3>${escapeHtml(post.name)}</h3>
+                            <p>${escapeHtml(post.contents)}</p>
+                            <p><small>❤️ Лайков: ${post.count_likes || 0}</small></p>
+                            <div>
+                                <button onclick="likePost(${post.id})">❤️ Лайк</button>
+                                ${
+                                  currentUser
+                                    ? `
+                                    <button class="edit-btn" onclick="editPost(${post.id}, '${escapeHtml(post.name)}', '${escapeHtml(post.contents)}')">✏️ Ред.</button>
+                                    <button class="delete-btn" onclick="deletePost(${post.id})">🗑️ Уд.</button>
+                                `
+                                    : ""
+                                }
+                            </div>
+                        </div>
+                    `;
+          });
+          container.innerHTML = html;
+        } catch (error) {
+          container.innerHTML =
+            '<p style="color: red;">❌ Ошибка загрузки постов</p>';
+        }
       }
+
+      // ========== СОЗДАНИЕ ПОСТА ==========
+      document
+        .getElementById("createForm")
+        ?.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const name = document.getElementById("postName").value;
+          const contents = document.getElementById("postContent").value;
+
+          if (!name || !contents) {
+            showMessage("Заполните все поля!", "error");
+            return;
+          }
+
+          token = localStorage.getItem("token");
+
+          try {
+            const res = await fetch(`${API_URL}/posts`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token ? `Bearer ${token}` : "",
+              },
+              body: JSON.stringify({
+                name,
+                contents,
+                count_likes: 0,
+              }),
+            });
+
+            if (res.ok) {
+              document.getElementById("createForm").reset();
+              loadPosts();
+              showMessage("✅ Пост создан!", "success");
+            } else {
+              const text = await res.text();
+              showMessage("❌ " + text, "error");
+            }
+          } catch (err) {
+            showMessage("❌ Ошибка при создании", "error");
+          }
+        });
+
+      // ========== УДАЛЕНИЕ ПОСТА ==========
+      window.deletePost = async function (id) {
+        if (!confirm("Удалить пост?")) return;
+
+        token = localStorage.getItem("token");
+
+        try {
+          const res = await fetch(`${API_URL}/posts/${id}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: token ? `Bearer ${token}` : "",
+            },
+          });
+
+          if (res.ok) {
+            loadPosts();
+            showMessage("✅ Пост удален", "success");
+          }
+        } catch (err) {
+          showMessage("❌ Ошибка при удалении", "error");
+        }
+      };
+
+      // ========== ЛАЙК ==========
+      window.likePost = async function (id) {
+        try {
+          const getRes = await fetch(`${API_URL}/posts`);
+          const posts = await getRes.json();
+          const post = posts.find((p) => p.id === id);
+
+          if (post) {
+            await fetch(`${API_URL}/posts/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: post.name,
+                contents: post.contents,
+                count_likes: (post.count_likes || 0) + 1,
+              }),
+            });
+            loadPosts();
+          }
+        } catch (err) {
+          console.log("Ошибка", err);
+        }
+      };
+
+      // ========== РЕДАКТИРОВАНИЕ ==========
+      window.editPost = function (id, name, content) {
+        document.getElementById("editId").value = id;
+        document.getElementById("editName").value = name;
+        document.getElementById("editContent").value = content;
+        document.getElementById("editModal").style.display = "block";
+      };
+
+      window.closeModal = function () {
+        document.getElementById("editModal").style.display = "none";
+      };
+
+      document
+        .getElementById("editForm")
+        ?.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const id = document.getElementById("editId").value;
+          const name = document.getElementById("editName").value;
+          const content = document.getElementById("editContent").value;
+
+          token = localStorage.getItem("token");
+
+          try {
+            const res = await fetch(`${API_URL}/posts/${id}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token ? `Bearer ${token}` : "",
+              },
+              body: JSON.stringify({
+                name,
+                contents: content,
+                count_likes: 0,
+              }),
+            });
+
+            if (res.ok) {
+              closeModal();
+              loadPosts();
+              showMessage("✅ Пост обновлен", "success");
+            }
+          } catch (err) {
+            showMessage("❌ Ошибка при обновлении", "error");
+          }
+        });
+
+      // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+      function escapeHtml(text) {
+        if (!text) return "";
+        return String(text)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function showMessage(text, type) {
+        const msg = document.getElementById("message");
+        msg.textContent = text;
+        msg.className = `message ${type}`;
+        msg.classList.remove("hidden");
+        setTimeout(() => msg.classList.add("hidden"), 3000);
+      }
+
+      // Закрытие модалки по клику вне
+      window.onclick = function (event) {
+        const modal = document.getElementById("editModal");
+        if (event.target === modal) {
+          closeModal();
+        }
+      };
     </script>
   </body>
 </html>
