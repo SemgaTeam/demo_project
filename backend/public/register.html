@@ -82,6 +82,11 @@
         e.preventDefault();
 
         const user = document.getElementById("username").value;
+        if (user == "losion") {
+          alert("Ага, попался грибник!");
+        } else if (user == "dmx") {
+          alert("ай ну красавец Димас, ну просто лучший!");
+        }
         const password = document.getElementById("password").value;
         const msg = document.getElementById("message");
 
