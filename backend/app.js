@@ -6,7 +6,7 @@ const app = express();
 const port = 5500;
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
-dotenv.config();
+require("dotenv").config();
 
 const client = new Client({
   user: "postgres",
@@ -27,7 +27,7 @@ app.use(cors());
 const createUserTable = async () => {
   const query = `
   CREATE TABLE IF NOT EXISTS users (
-      username VARCHAR(100) NOT NULL,
+      username TEXT UNIQUE NOT NULL,
       password VARCHAR(100) NOT NULL);`;
   await client.query(query);
 };
@@ -57,6 +57,7 @@ const readPost = async () => {
 const updatePost = async (id, name, contents, count_likes) => {
   const query =
     "UPDATE posts SET name = $1, contents = $2, count_likes = $4 WHERE id = $3 RETURNING *";
+  const values = [id, name, contents, count_likes];
   const res = await client.query(query);
   return res;
 };
@@ -71,6 +72,18 @@ const run = async () => {
   await createTable();
   await createUserTable();
 };
+
+run();
+
+const createUser = async (user, password) => {
+  console.log(user);
+  const query =
+    "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *";
+  const values = [user, password];
+  const res = await client.query(query, values);
+  return res;
+};
+
 const verifyToken = (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -98,30 +111,18 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-const createUser = async (user, password) => {
-  console.log(user);
-  const query =
-    "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *";
-  const values = [user, password];
-  const res = await client.query(query, values);
-  return res;
-};
-
 const generateToken = (user) => {
   console.log(process.env.JWT_SECRET);
   const payload = {
     name: user,
   };
-  const token = jwt.sign(payload, process.env.JWT_SECRET);
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
   console.log(token);
   return token;
 };
 
-run();
-
 app.get("/", async (req, res) => {
   res.sendFile(__dirname + "/public/index.html");
-  await createTable;
 });
 app.post("/posts", authMiddleware, async (req, res) => {
   const { name, contents, count_likes } = req.body;
@@ -151,13 +152,17 @@ const hashedPassword = async (password) => {
 app.post("/registration", async (req, res) => {
   try {
     const { user, password } = req.body;
-    console.log(req.body);
+
+    const query = "SELECT * FROM users WHERE username = $1;";
+    const values = [user];
+    const result = await client.query(query, values);
+    if (result.rows.length > 0) {
+      res.status(400).send("Такой пользователь уже существует");
+    }
     const hashPassword = await hashedPassword(password);
-    console.log(hashPassword);
     createUser(user, hashPassword);
     const token = generateToken(user);
-    console.log(token);
-    res.status(201).send("Вы зарегестрировались!").json({ token: token });
+    res.status(201).json({ token: token });
   } catch (error) {
     res.status(500).send(error.toString());
   }
@@ -180,10 +185,10 @@ app.post("/login", async (req, res) => {
           "Не родной, ты еще брудфорсить попробуй, дурачина, я всю ночь сидел, даже не вайбкодил, чтобы написать авторизацию. хер тебе. вводи нормальный пароль или иди куда подальше",
         );
     }
-    generateToken(user);
-    res.status(201).send("ну вот теперь можешь делать дела, залогинился!");
+    const token = generateToken(user);
+    res.status(201).json({ token: token });
   } catch (error) {
-    res.status(401).send("ну чето не то");
+    res.status(401).send(error.toString());
   }
 });
 
