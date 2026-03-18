@@ -328,22 +328,23 @@
       // ========== ЛАЙК ==========
       window.likePost = async function (id) {
         try {
-          const getRes = await fetch(`${API_URL}/posts`);
-          const posts = await getRes.json();
-          const post = posts.find((p) => p.id === id);
+          const res = await fetch(`${API_URL}/posts/${id}/like`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`, // если есть авторизация
+            },
+          });
 
-          if (post) {
-            await fetch(`${API_URL}/posts/${id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: post.name,
-                contents: post.contents,
-                count_likes: (post.count_likes || 0) + 1,
-              }),
-            });
-            loadPosts();
+          if (!res.ok) {
+            throw new Error("Ошибка запроса");
           }
+
+          const data = await res.json();
+
+          console.log("Лайк обновлён:", data);
+
+          loadPosts(); // перезагружаем список
         } catch (err) {
           console.log("Ошибка", err);
         }

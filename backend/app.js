@@ -50,15 +50,15 @@ const createPost = async (name, contents, count_likes) => {
   return res;
 };
 const readPost = async () => {
-  const query = "SELECT * FROM posts";
+  const query = "SELECT * FROM posts ORDER BY id DESC";
   const res = await client.query(query);
   return res;
 };
-const updatePost = async (id, name, contents, count_likes) => {
+const updatePost = async (id, name, contents) => {
   const query =
-    "UPDATE posts SET name = $1, contents = $2, count_likes = $4 WHERE id = $3 RETURNING *";
-  const values = [id, name, contents, count_likes];
-  const res = await client.query(query);
+    "UPDATE posts SET name = $1, contents = $2 WHERE id = $3 RETURNING *";
+  const values = [name, contents, id];
+  const res = await client.query(query, values);
   return res;
 };
 const deletePost = async (id) => {
@@ -129,6 +129,14 @@ const generateToken = (user) => {
   return token;
 };
 
+const addLike = async (id) => {
+  const query =
+    "UPDATE posts SET count_likes = count_likes + 1 WHERE id = $1 RETURNING *";
+  const values = [id];
+  const result = await client.query(query, values);
+  return result;
+};
+
 app.get("/", async (req, res) => {
   res.sendFile(__dirname + "/public/index.html");
 });
@@ -143,8 +151,8 @@ app.get("/posts", async (req, res) => {
 });
 app.put("/posts/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { name, contents, count_likes } = req.body;
-  result = await updatePost(id);
+  const { name, contents } = req.body;
+  result = await updatePost(id, name, contents);
   res.json(res.rows[0]);
 });
 app.delete("/posts/:id", authMiddleware, async (req, res) => {
@@ -152,6 +160,16 @@ app.delete("/posts/:id", authMiddleware, async (req, res) => {
   await deletePost(id);
   res.json(res.rows[0]);
 });
+app.put("/posts/:id/like", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateLike = await addLike(id);
+    res.status(200).json({ data: updateLike });
+  } catch {
+    res.status(500).send("Ошибка при добавлении лайка");
+  }
+});
+
 const hashedPassword = async (password) => {
   const saltRounds = 10;
   const hashPassword = await bcrypt.hash(password, saltRounds);
