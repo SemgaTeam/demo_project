@@ -150,10 +150,14 @@ app.get("/posts", async (req, res) => {
   res.json(result.rows);
 });
 app.put("/posts/:id", authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  const { name, contents } = req.body;
-  result = await updatePost(id, name, contents);
-  res.json(res.rows[0]);
+  try {
+    const { id } = req.params;
+    const { name, contents } = req.body;
+    result = await updatePost(id, name, contents);
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error });
+  }
 });
 app.delete("/posts/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;

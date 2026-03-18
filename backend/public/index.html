@@ -369,7 +369,7 @@
 
           const id = document.getElementById("editId").value;
           const name = document.getElementById("editName").value;
-          const content = document.getElementById("editContent").value;
+          const contents = document.getElementById("editContent").value;
 
           token = localStorage.getItem("token");
 
@@ -382,8 +382,7 @@
               },
               body: JSON.stringify({
                 name,
-                contents: content,
-                count_likes: 0,
+                contents: contents,
               }),
             });
 
