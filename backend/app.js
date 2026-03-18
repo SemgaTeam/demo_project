@@ -27,7 +27,7 @@ app.use(cors());
 const createUserTable = async () => {
   const query = `
   CREATE TABLE IF NOT EXISTS users (
-      username TEXT UNIQUE NOT NULL,
+      username TEXT NOT NULL,
       password VARCHAR(100) NOT NULL);`;
   await client.query(query);
 };
@@ -82,8 +82,6 @@ const run = async () => {
   await createTable();
   await createUserTable();
 };
-
-run();
 
 const createUser = async (user, password) => {
   console.log(user);
@@ -161,8 +159,9 @@ const hashedPassword = async (password) => {
 };
 app.post("/registration", async (req, res) => {
   try {
+    await run();
     const { user, password } = req.body;
-    const validUser = findByUsername(user);
+    const validUser = await findByUsername(user);
     console.log(validUser);
     if (validUser === false) {
       res.status(400).send("Пользователь с таким именем уже существует!");
