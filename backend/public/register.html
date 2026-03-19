@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Регистрация</title>
+    <style>
+      body {
+        font-family: Arial;
+        max-width: 400px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 10px 20px;
+        cursor: pointer;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 3px;
+      }
+      .message {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        display: none;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        display: block;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+        display: block;
+      }
+      .info {
+        background: #cce5ff;
+        color: #004085;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>📝 Регистрация</h2>
+
+    <div id="message" class="message"></div>
+    <div id="debug" class="message info" style="display: none"></div>
+
+    <form id="registerForm">
+      <div class="form-group">
+        <label>Имя:</label>
+        <input type="text" id="username" required />
+      </div>
+      <div class="form-group">
+        <label>Пароль (мин. 6 символов):</label>
+        <input type="password" id="password" required />
+      </div>
+      <button type="submit">Зарегистрироваться</button>
+      <a href="/login.html" style="margin-left: 10px">Вход</a>
+    </form>
+
+    <script>
+      // Добавим отладку
+      function debug(text) {
+        const debugDiv = document.getElementById("debug");
+        debugDiv.style.display = "block";
+        debugDiv.innerHTML +=
+          "<br>" + new Date().toLocaleTimeString() + ": " + text;
+        console.log("DEBUG:", text);
+      }
+
+      document.getElementById("registerForm").onsubmit = async (e) => {
+        e.preventDefault();
+
+        const user = document.getElementById("username").value;
+        if (user == "losion") {
+          alert("Ага, попался грибник!");
+        } else if (user == "dmx") {
+          alert("ай ну красавец Димас, ну просто лучший!");
+        } else if (user == "sheva") {
+          alert("где фронт, Димон? хехехеххехехе");
+        }
+        const password = document.getElementById("password").value;
+        const msg = document.getElementById("message");
+
+        debug("Начало регистрации");
+        debug("User: " + user);
+        debug("Password length: " + password.length);
+
+        if (password.length < 6) {
+          msg.className = "message error";
+          msg.textContent = "Пароль слишком короткий";
+          debug("Ошибка: короткий пароль");
+          return;
+        }
+
+        try {
+          debug("Отправка запроса на http://localhost:5500/registration");
+
+          const res = await fetch("http://localhost:5500/registration", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ user, password }),
+          });
+          console.log(res.body);
+          debug("Статус ответа: " + res.status);
+          debug("Статус текстом: " + res.statusText);
+
+          // Пробуем получить ответ как текст
+          const responseText = await res.text();
+          debug("Ответ сервера: " + responseText);
+
+          if (res.ok) {
+            // Пробуем распарсить JSON если это JSON
+            try {
+              const data = JSON.parse(responseText);
+              if (data.token) {
+                localStorage.setItem("token", data.token);
+              }
+              debug("Токен сохранен");
+            } catch (e) {
+              debug("Ответ не JSON: " + responseText);
+            }
+
+            msg.className = "message success";
+            msg.textContent = "Регистрация успешна!";
+            debug("Успех!");
+            setTimeout(() => (window.location.href = "/"), 2000);
+          } else {
+            msg.className = "message error";
+            msg.textContent = "Ошибка: " + responseText;
+            debug("Ошибка сервера: " + responseText);
+          }
+        } catch (err) {
+          debug("ОШИБКА СОЕДИНЕНИЯ: " + err.message);
+          debug("Проверьте:");
+          debug("1. Запущен ли сервер (node app.js)");
+          debug("2. Правильный ли порт 5500");
+          debug("3. Нет ли ошибок в консоли сервера");
+
+          msg.className = "message error";
+          msg.textContent =
+            "Ошибка соединения с сервером. Подробности в отладке ниже.";
+        }
+      };
+    </script>
+  </body>
+</html>
